@@ -1,14 +1,14 @@
 {
-    "Group": "Example",
-    "Name": "ExamplePlugin",
-    "Version": "0.0.2",
-    "Description": "An example plugin for HyTale!",
+    "Group": "GamerDuck123",
+    "Name": "BetterJoin",
+    "Version": "1.0.0",
+    "Description": "A simple plugin that gives you insane flexibility with welcome, join and leave messages!",
     "Authors": [
         {
-            "Name": "It's you!"
+            "Name": "GamerDuck123"
         }
     ],
-    "Website": "example.org",
+    "Website": "https://github.com/GamerDuck123/",
     "ServerVersion": "*",
     "Dependencies": {
         
@@ -17,6 +17,6 @@
         
     },
     "DisabledByDefault": false,
-    "Main": "org.example.plugin.ExamplePlugin",
+    "Main": "com.gamerduck.betterjoin.BetterJoinPlugin",
     "IncludesAssetPack": true
 }
