@@ -65,7 +65,7 @@ public class BetterJoinPlugin extends JavaPlugin {
                     }
                 });
             } else {
-                Universe.get().sendMessage(Colors.formatColorCodes(message));
+                Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getUsername())));
             }
         }
     }
@@ -90,7 +90,7 @@ public class BetterJoinPlugin extends JavaPlugin {
                 }
             });
         } else {
-            Universe.get().sendMessage(Colors.formatColorCodes(message));
+            Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
         }
     }
 
@@ -114,7 +114,7 @@ public class BetterJoinPlugin extends JavaPlugin {
                 }
             });
         } else {
-            Universe.get().sendMessage(Colors.formatColorCodes(message));
+            Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
         }
     }
 
