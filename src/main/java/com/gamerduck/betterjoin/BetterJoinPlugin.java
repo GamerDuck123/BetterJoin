@@ -3,16 +3,19 @@ package com.gamerduck.betterjoin;
 import com.gamerduck.betterjoin.api.Config;
 import com.gamerduck.betterjoin.commands.ReloadCommand;
 import com.gamerduck.betterjoin.api.Colors;
+import com.gamerduck.betterjoin.early.TransformerCompiler;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.event.events.player.*;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.util.EventTitleUtil;
 
 import javax.annotation.Nonnull;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,19 +25,47 @@ public class BetterJoinPlugin extends JavaPlugin {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private final Path playersData = Path.of("universe").resolve("players");
+    private final Path earlyPlugins = Path.of("earlyplugins");
 
-    public BetterJoinPlugin(@Nonnull JavaPluginInit init) {
+    public BetterJoinPlugin(@Nonnull JavaPluginInit init) throws IOException {
         super(init);
-        try {
-            Config.initialize(this, this.withConfig("config", Config.CODEC));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            Config.initialize(this, this.withConfig("config", Config.CODEC))
+                    .thenRun(() -> {
+                        // TODO - Make the disabled jar a configuration value, for now have people manually rename
+//                        if (Config.getConfig().isDisableLeaveMessages()
+//                                && Files.exists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled"))) {
+//                            File file = new File(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled").toUri());
+//                            file.renameTo(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar").toFile());
+//                            file.delete();
+//                        } else if (Files.exists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar"))) {
+//                            File file = new File(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar").toUri());
+//                            file.renameTo(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled").toFile());
+//                            file.delete();
+//                        }
+                    });
+
+        if (Files.notExists(earlyPlugins)) {
+            Files.createDirectories(earlyPlugins);
+        }
+
+        if (Files.notExists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar"))
+                || Files.notExists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled"))) {
+            try {
+                TransformerCompiler compiler = new TransformerCompiler();
+
+                compiler.createJarFromCompiledClass("earlyplugins/BetterJoinEarlyPlugin.jar");
+
+                File file = new File(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar").toUri());
+                file.renameTo(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled").toFile());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
     @Override
     protected void setup() {
-        this.getCommandRegistry().registerCommand(new ReloadCommand());
+        this.getCommandRegistry().registerCommand(new ReloadCommand(this));
 
         this.getEventRegistry().registerGlobal(PlayerSetupConnectEvent.class, this::onPlayerFirstJoin);
         this.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, e -> e.setBroadcastJoinMessage(!Config.getConfig().isDisableJoinMessages()));

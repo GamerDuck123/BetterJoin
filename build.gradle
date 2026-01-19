@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.3'
+    id 'com.gradleup.shadow' version '9.3.0'
 }
 
 ext {
@@ -18,11 +19,23 @@ javadoc {
     options.addStringOption('Xdoclint:-missing', '-quiet')
 }
 
+configurations {
+    create("shade")
+    implementation {
+        extendsFrom(configurations["shade"])
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
 // Adds the Hytale server as a build dependency, allowing you to reference and
 // compile against their code. This requires you to have Hytale installed using
 // the official launcher for now.
 dependencies {
     implementation(files("$hytaleHome/install/$patchline/package/game/latest/Server/HytaleServer.jar"))
+    shade "org.ow2.asm:asm:9.9"
 }
 
 // Create the working directory to run the server if it does not already exist.
@@ -67,4 +80,9 @@ idea.project.settings.runConfigurations {
         }
         workingDirectory = serverRunDir.absolutePath
     }
+}
+tasks.shadowJar {
+    configurations = [project.configurations.shade]
+    mergeServiceFiles()
+    archiveClassifier.set("")
 }

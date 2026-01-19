@@ -15,10 +15,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 public class Config {
     private static com.hypixel.hytale.server.core.util.Config<Config> config;
-    private static JavaPlugin pluginInstance;
     private static final Path pluginsFolder = Path.of("mods");
 
     private static final FunctionCodec<String[], String> MULTI_LINED_MESSAGE_CODEC = new FunctionCodec<>(Codec.STRING_ARRAY,
@@ -43,9 +43,14 @@ public class Config {
             return config.leaveMessage;
         }).add();
         builderBase.append(new KeyedCodec<>("DisableJoinMessages", Codec.BOOLEAN), (config, value, info) -> {
-            config.useTitles = value;
+            config.disableJoinMessages = value;
         }, (config, info) -> {
-            return config.useTitles;
+            return config.disableJoinMessages;
+        }).add();
+        builderBase.append(new KeyedCodec<>("DisableLeaveMessages", Codec.BOOLEAN), (config, value, info) -> {
+            config.disableLeaveMessages = value;
+        }, (config, info) -> {
+            return config.disableLeaveMessages;
         }).add();
 
         builderBase.append(new KeyedCodec<>("UseTitles", Codec.BOOLEAN), (config, value, info) -> {
@@ -72,6 +77,7 @@ public class Config {
     private String leaveMessage = "Someone left the game\n{player}";
     private boolean useTitles = true;
     private boolean disableJoinMessages = true;
+    private boolean disableLeaveMessages = true;
     private String messageReloaded = "&aConfiguration reloaded successfully!";
     private String noPermission = "&cYou don't have permission to use this command!";
 
@@ -90,6 +96,11 @@ public class Config {
     public boolean isDisableJoinMessages() {
         return this.disableJoinMessages;
     }
+
+    public boolean isDisableLeaveMessages() {
+        return this.disableLeaveMessages;
+    }
+
     public boolean isUseTitles() {
         return this.useTitles;
     }
@@ -106,16 +117,22 @@ public class Config {
         return config.get();
     }
 
-    public static void initialize(JavaPlugin plugin, com.hypixel.hytale.server.core.util.Config<Config> config) throws IOException {
-        pluginInstance = plugin;
-        createOrUpdateConfig(plugin);
-        Config.config = config;
+    public static CompletableFuture<Void> initialize(JavaPlugin plugin, com.hypixel.hytale.server.core.util.Config<Config> config) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                createOrUpdateConfig(plugin);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            Config.config = config;
+            return null;
+        });
     }
 
-    public static void reloadConfig() throws IOException {
-        createOrUpdateConfig(pluginInstance);
+    public static void reloadConfig(JavaPlugin plugin) throws IOException {
+        createOrUpdateConfig(plugin);
         config.load();
-        pluginInstance.getLogger().atInfo().log(Colors.stripColorCodes((config.get()).getMessageReloaded()));
+        plugin.getLogger().atInfo().log(Colors.stripColorCodes((config.get()).getMessageReloaded()));
     }
 
     public static void createOrUpdateConfig(JavaPlugin plugin) throws IOException {

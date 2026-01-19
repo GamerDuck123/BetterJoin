@@ -4,14 +4,18 @@ import com.gamerduck.betterjoin.api.Config;
 import com.gamerduck.betterjoin.api.Colors;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
+import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+
 import javax.annotation.Nonnull;
 import java.io.IOException;
 
 public class ReloadCommand extends CommandBase {
     private final String PERMISSION = "betterjoin.reload";
+    private final JavaPlugin plugin;
 
-    public ReloadCommand() {
+    public ReloadCommand(JavaPlugin plugin) {
         super("betterjoin", "Better Join command", false);
+        this.plugin = plugin;
     }
 
     protected void executeSync(@Nonnull CommandContext commandContext) {
