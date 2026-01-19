@@ -23,7 +23,7 @@ public class ReloadCommand extends CommandBase {
             commandContext.sender().sendMessage(Colors.formatColorCodes(Config.getConfig().getNoPermission()));
         } else {
             try {
-                Config.reloadConfig();
+                Config.reloadConfig(plugin);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

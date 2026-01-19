@@ -1,13 +1,8 @@
 {
     "Group": "GamerDuck123",
     "Name": "BetterJoin",
-    "Version": "1.0.1",
+    "Version": "1.0.2",
     "Description": "A simple plugin that gives you insane flexibility with welcome, join and leave messages!",
-    "Hyxin": {
-        "Configs": [
-            "betterjoin.mixins.json"
-        ]
-    },
     "Authors": [
         {
             "Name": "GamerDuck123"
