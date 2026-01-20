@@ -4,11 +4,15 @@ import com.gamerduck.betterjoin.api.Config;
 import com.gamerduck.betterjoin.commands.ReloadCommand;
 import com.gamerduck.betterjoin.api.Colors;
 import com.gamerduck.betterjoin.early.TransformerCompiler;
+import com.hypixel.hytale.common.thread.HytaleForkJoinThreadFactory;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.protocol.packets.connection.DisconnectType;
+import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.event.events.player.*;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.task.TaskRegistration;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -22,12 +26,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BetterJoinPlugin extends JavaPlugin {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
     private final Path playersData = Path.of("universe").resolve("players");
     private final Path earlyPlugins = Path.of("earlyplugins");
+    private final ScheduledExecutorService SCHEDULED_EXECUTOR = Executors.newScheduledThreadPool(0);
+    private final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     public BetterJoinPlugin(@Nonnull JavaPluginInit init) throws IOException {
         super(init);
@@ -76,33 +83,30 @@ public class BetterJoinPlugin extends JavaPlugin {
     }
 
     private void onPlayerConnect(PlayerConnectEvent e) {
-        // Welcome message
-        Path playerPath = playersData.resolve(e.getPlayerRef().getUuid().toString() + ".json");
-        if (Files.notExists(playerPath)) {
-            String message = Config.getConfig().getWelcomeMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
+        Path playerPath = playersData.resolve(e.getPlayerRef().getUuid() + ".json");
+        AtomicBoolean playerNotExists = new AtomicBoolean(Files.notExists(playerPath));
+        this.getTaskRegistry().registerTask(schedule(() -> {
+            PlayerRef ref = e.getPlayerRef();
+            if (ref.isValid()) {
+                String message = playerNotExists.get() ? Config.getConfig().getWelcomeMessage() : Config.getConfig().getJoinMessage();
+                message = message.replace("{player}", ref.getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
+                if (Config.getConfig().isUseTitles()) {
+                    splitAndSendTitle(message);
+                } else {
+                    Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", ref.getUsername())));
+                }
+            }
+        }, 1, TimeUnit.SECONDS));
+    }
+
+    private void onPlayerDisconnect(PlayerDisconnectEvent e) {
+        if (e.getDisconnectReason().getClientDisconnectType() != null) {
+            String message = Config.getConfig().getLeaveMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
             if (Config.getConfig().isUseTitles()) {
                 splitAndSendTitle(message);
             } else {
                 Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
             }
-        }
-
-        // Join message
-        String message = Config.getConfig().getJoinMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
-        if (Config.getConfig().isUseTitles()) {
-            splitAndSendTitle(message);
-        } else {
-            Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
-        }
-
-    }
-
-    private void onPlayerDisconnect(PlayerDisconnectEvent e) {
-        String message = Config.getConfig().getLeaveMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
-        if (Config.getConfig().isUseTitles()) {
-            splitAndSendTitle(message);
-        } else {
-            Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
         }
     }
 
@@ -125,4 +129,7 @@ public class BetterJoinPlugin extends JavaPlugin {
         });
     }
 
+    private ScheduledFuture<Void> schedule(Runnable command, long delay, TimeUnit unit){
+        return (ScheduledFuture<Void>) SCHEDULED_EXECUTOR.schedule(()-> EXECUTOR.execute(command), delay, unit);
+    }
 }
