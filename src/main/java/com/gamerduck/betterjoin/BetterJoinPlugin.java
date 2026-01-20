@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.util.EventTitleUtil;
+import com.hypixel.hytale.server.npc.util.Timer;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -20,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.concurrent.*;
 
 public class BetterJoinPlugin extends JavaPlugin {
 
@@ -49,7 +51,7 @@ public class BetterJoinPlugin extends JavaPlugin {
         }
 
         if (Files.notExists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar"))
-                || Files.notExists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled"))) {
+                && Files.notExists(earlyPlugins.resolve("BetterJoinEarlyPlugin.jar.disabled"))) {
             try {
                 TransformerCompiler compiler = new TransformerCompiler();
 
@@ -67,86 +69,60 @@ public class BetterJoinPlugin extends JavaPlugin {
     protected void setup() {
         this.getCommandRegistry().registerCommand(new ReloadCommand(this));
 
-        this.getEventRegistry().registerGlobal(PlayerSetupConnectEvent.class, this::onPlayerFirstJoin);
         this.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, e -> e.setBroadcastJoinMessage(!Config.getConfig().isDisableJoinMessages()));
         this.getEventRegistry().registerGlobal(PlayerConnectEvent.class, this::onPlayerConnect);
         this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
 
     }
 
-    private void onPlayerFirstJoin(PlayerSetupConnectEvent e) {
-        Path playerPath = playersData.resolve(e.getUuid().toString() + ".json");
+    private void onPlayerConnect(PlayerConnectEvent e) {
+        // Welcome message
+        Path playerPath = playersData.resolve(e.getPlayerRef().getUuid().toString() + ".json");
         if (Files.notExists(playerPath)) {
-            String message = Config.getConfig().getWelcomeMessage();
+            String message = Config.getConfig().getWelcomeMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
             if (Config.getConfig().isUseTitles()) {
-                Iterator<String> iterator = message.replace("{player}", e.getUsername()).replaceAll("[&§]([0-9a-fk-or])", "").lines().iterator();
-                Message topLine = Message.raw(iterator.next());
-                StringBuilder rest = new StringBuilder();
-                iterator.forEachRemaining(s -> {
-                    rest.append(s);
-                    if (iterator.hasNext()) rest.append("\n");
-                });
-                Message restLines = Message.raw(rest.toString());
-                Universe.get().getPlayers().forEach((playerRef) -> {
-                    if (playerRef.getWorldUuid() != null) {
-                        World world = Universe.get().getWorld(playerRef.getWorldUuid());
-                        world.execute(() -> {
-                            EventTitleUtil.showEventTitleToPlayer(playerRef, restLines, topLine, true, null, 5, 1, 1);
-                        });
-                    }
-                });
+                splitAndSendTitle(message);
             } else {
-                Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getUsername())));
+                Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
             }
         }
-    }
 
-    private void onPlayerConnect(PlayerConnectEvent e) {
-        String message = Config.getConfig().getJoinMessage();
+        // Join message
+        String message = Config.getConfig().getJoinMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
         if (Config.getConfig().isUseTitles()) {
-            Iterator<String> iterator = message.replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "").lines().iterator();
-            Message topLine = Message.raw(iterator.next());
-            StringBuilder rest = new StringBuilder();
-            iterator.forEachRemaining(s -> {
-                rest.append(s);
-                if (iterator.hasNext()) rest.append("\n");
-            });
-            Message restLines = Message.raw(rest.toString());
-            Universe.get().getPlayers().forEach((playerRef) -> {
-                if (playerRef.getWorldUuid() != null) {
-                    World world = Universe.get().getWorld(playerRef.getWorldUuid());
-                    world.execute(() -> {
-                        EventTitleUtil.showEventTitleToPlayer(playerRef, restLines, topLine, false, null, 5, 1, 1);
-                    });
-                }
-            });
+            splitAndSendTitle(message);
         } else {
             Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
         }
+
     }
 
     private void onPlayerDisconnect(PlayerDisconnectEvent e) {
-        String message = Config.getConfig().getLeaveMessage();
+        String message = Config.getConfig().getLeaveMessage().replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "");
         if (Config.getConfig().isUseTitles()) {
-            Iterator<String> iterator = message.replace("{player}", e.getPlayerRef().getUsername()).replaceAll("[&§]([0-9a-fk-or])", "").lines().iterator();
-            Message topLine = Message.raw(iterator.next());
-            StringBuilder rest = new StringBuilder();
-            iterator.forEachRemaining(s -> {
-                rest.append(s);
-                if (iterator.hasNext()) rest.append("\n");
-            });
-            Message restLines = Message.raw(rest.toString());
-            Universe.get().getPlayers().forEach((playerRef) -> {
-                if (playerRef.getWorldUuid() != null) {
-                    World world = Universe.get().getWorld(playerRef.getWorldUuid());
-                    world.execute(() -> {
-                        EventTitleUtil.showEventTitleToPlayer(playerRef, restLines, topLine, false, null, 5, 1, 1);
-                    });
-                }
-            });
+            splitAndSendTitle(message);
         } else {
             Universe.get().sendMessage(Colors.formatColorCodes(message.replace("{player}", e.getPlayerRef().getUsername())));
         }
+    }
+
+    private void splitAndSendTitle(String message) {
+        Iterator<String> iterator = message.lines().iterator();
+        Message topLine = Message.raw(iterator.next());
+        StringBuilder rest = new StringBuilder();
+        iterator.forEachRemaining(s -> {
+            rest.append(s);
+            if (iterator.hasNext()) rest.append("\n");
+        });
+        Message restLines = Message.raw(rest.toString());
+        Universe.get().getPlayers().forEach((playerRef) -> {
+            if (playerRef.getWorldUuid() != null) {
+                World world = Universe.get().getWorld(playerRef.getWorldUuid());
+                world.execute(() -> {
+                    EventTitleUtil.showEventTitleToPlayer(playerRef, restLines, topLine, false, null, 5, 1, 1);
+                });
+            }
+        });
     }
 
 }

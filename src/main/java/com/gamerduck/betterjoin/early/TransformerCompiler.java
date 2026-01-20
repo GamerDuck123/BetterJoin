@@ -1,9 +1,6 @@
 package com.gamerduck.betterjoin.early;
 
-import javax.tools.JavaCompiler;
-import javax.tools.ToolProvider;
 import java.io.*;
-import java.net.URISyntaxException;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
