@@ -47,11 +47,11 @@ public class Config {
         }, (config, info) -> {
             return config.disableJoinMessages;
         }).add();
-        builderBase.append(new KeyedCodec<>("DisableLeaveMessages", Codec.BOOLEAN), (config, value, info) -> {
-            config.disableLeaveMessages = value;
-        }, (config, info) -> {
-            return config.disableLeaveMessages;
-        }).add();
+//        builderBase.append(new KeyedCodec<>("DisableLeaveMessages", Codec.BOOLEAN), (config, value, info) -> {
+//            config.disableLeaveMessages = value;
+//        }, (config, info) -> {
+//            return config.disableLeaveMessages;
+//        }).add();
 
         builderBase.append(new KeyedCodec<>("UseTitles", Codec.BOOLEAN), (config, value, info) -> {
             config.useTitles = value;
